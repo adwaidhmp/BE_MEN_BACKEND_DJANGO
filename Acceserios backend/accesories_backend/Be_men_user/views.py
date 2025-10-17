@@ -112,6 +112,9 @@ class PasswordChangeView(APIView):
 
 
 
+from django.contrib.auth import get_user_model
+
+User = get_user_model()  # Use your custom user model
 
 class ForgotPasswordView(APIView):
     def post(self, request):
@@ -122,15 +125,21 @@ class ForgotPasswordView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({'message': 'If an account with this email exists, a reset link has been sent.'}, status=status.HTTP_200_OK)
+            # Don't reveal whether the email exists for security
+            return Response(
+                {'message': 'If an account with this email exists, a reset link has been sent.'},
+                status=status.HTTP_200_OK
+            )
 
+        # Generate password reset token
         token_generator = PasswordResetTokenGenerator()
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
         token = token_generator.make_token(user)
 
-        reset_url = f"http://localhost:3000/reset-password/{uidb64}/{token}/"  # your frontend route
+        # Construct reset URL for frontend
+        reset_url = f"http://localhost:5173/reset-password/{uidb64}/{token}/"
 
-        # send email
+        # Send reset email
         send_mail(
             'Reset Your Password',
             f'Click the link below to reset your password:\n{reset_url}',
@@ -330,8 +339,17 @@ from rest_framework import permissions, status
 class UserOrdersAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request):
-        # Get all orders for the logged-in user
+    def get(self, request, order_id=None):
+        # If order_id is provided, return single order
+        if order_id:
+            try:
+                order = Order.objects.select_related('product').get(id=order_id, user=request.user)
+                serializer = UserOrderSerializer(order)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Order.DoesNotExist:
+                return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Otherwise, return all orders for the user
         orders = Order.objects.filter(user=request.user).select_related('product').order_by('-created_at')
         serializer = UserOrderSerializer(orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -339,6 +357,7 @@ class UserOrdersAPIView(APIView):
     def delete(self, request, order_id=None):
         if not order_id:
             return Response({'error': 'Order ID is required for delete'}, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
             order = Order.objects.get(id=order_id, user=request.user)
         except Order.DoesNotExist:
@@ -379,37 +398,50 @@ class CheckoutAPIView(APIView):
         if not orders_data:
             return Response({'error': 'No orders provided'}, status=400)
 
-        # Validate each order's payment method
+        # Validate payment method and check stock
         for order_data in orders_data:
             pm = order_data.get('payment_method')
             if pm not in ['COD', 'RAZORPAY']:
-                return Response({'error': f'Invalid payment method for product {order_data.get("product")}'}, status=400)
+                return Response(
+                    {'error': f'Invalid payment method for product {order_data.get("product")}'},
+                    status=400
+                )
 
-        # Serializer automatically assigns price and total_amount
+            product = Product.objects.get(id=order_data['product'])
+            if product.product_stock < order_data['quantity']:
+                return Response(
+                    {'error': f'Not enough stock for {product.name}'},
+                    status=400
+                )
+
+        # Serialize and save orders
         serializer = CheckoutOrderSerializer(
             data=orders_data,
             many=True,
             context={'request': request}
         )
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=400)
-
-        # Save orders
+        serializer.is_valid(raise_exception=True)
         orders = serializer.save()
 
-        # Calculate total_amount across all orders
+        # For COD, reduce stock immediately
+        if orders_data[0]['payment_method'] == 'COD':
+            for order in orders:
+                product = order.product
+                product.product_stock -= order.quantity
+                product.save()
+
+        # Calculate total_amount
         total_amount = sum(order.total_amount for order in orders)
 
-        # COD response
+        # Response
         if orders_data[0]['payment_method'] == 'COD':
             return Response({
                 'message': 'Orders placed successfully (COD)',
                 'total_amount': total_amount,
                 'orders': CheckoutOrderSerializer(orders, many=True).data
             }, status=201)
-
-        # Razorpay response
         else:
+            # Razorpay
             amount_paise = int(total_amount * 100)
             razorpay_order = razorpay_client.order.create({
                 "amount": amount_paise,
@@ -417,7 +449,7 @@ class CheckoutAPIView(APIView):
                 "payment_capture": 1
             })
 
-            # Update Razorpay order IDs
+            # Attach Razorpay order ID to all orders
             for order in orders:
                 order.razorpay_order_id = razorpay_order['id']
                 order.save()
@@ -430,6 +462,7 @@ class CheckoutAPIView(APIView):
                 'currency': 'INR',
                 'orders': CheckoutOrderSerializer(orders, many=True).data
             }, status=201)
+
 
 
 
@@ -460,17 +493,23 @@ class RazorpayVerifyAPIView(APIView):
                 'razorpay_signature': signature
             })
         except razorpay.errors.SignatureVerificationError:
-            # Payment failed → delete all orders with this razorpay_order_id
+            # Payment failed → delete orders
             orders = Order.objects.filter(razorpay_order_id=order_id)
             deleted_count, _ = orders.delete()
             return Response({'error': f'Payment verification failed, {deleted_count} order(s) deleted'}, status=400)
 
-        # Payment verified successfully → mark as PAID
+        # Payment verified → mark as PAID & reduce stock
         orders = Order.objects.filter(razorpay_order_id=order_id)
         for order in orders:
             order.payment_status = 'PAID'
             order.razorpay_payment_id = payment_id
             order.save()
 
+            # Reduce stock
+            product = order.product
+            product.product_stock -= order.quantity
+            product.save()
+
         return Response({'message': 'Payment successful', 'orders': [o.id for o in orders]}, status=200)
+
 

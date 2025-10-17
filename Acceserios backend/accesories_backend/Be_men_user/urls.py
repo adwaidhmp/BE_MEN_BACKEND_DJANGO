@@ -45,6 +45,7 @@ urlpatterns = [
     
     
     path('my-orders/', UserOrdersAPIView.as_view(), name='user-orders'),
+    path('orders/<int:order_id>/', UserOrdersAPIView.as_view(), name='order-detail'),
     path('my-orders/<int:order_id>/', UserOrdersAPIView.as_view(), name='delete-order'),
     path('checkout/', CheckoutAPIView.as_view(), name='checkout'),
     path('razorpay/verify/', RazorpayVerifyAPIView.as_view(), name='razorpay-verify'),

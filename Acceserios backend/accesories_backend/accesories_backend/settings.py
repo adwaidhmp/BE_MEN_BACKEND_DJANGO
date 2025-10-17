@@ -162,7 +162,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'adwaith7727@gmail.com'
-EMAIL_HOST_PASSWORD = 'rkihlweqrcxdrvxy'   
+EMAIL_HOST_PASSWORD = 'bgiyywcsybwqogrt'   
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 

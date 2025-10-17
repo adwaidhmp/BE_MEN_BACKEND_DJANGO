@@ -1,8 +1,31 @@
 
 from django.contrib import admin
 from .models import Product,ProductCategory
-from Be_men_user.models import Order
+from django.contrib.auth.admin import UserAdmin
+from Be_men_user.models import Order,User
 
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):
+    model = User
+    list_display = ('email', 'name', 'phone_number', 'is_staff', 'is_active', 'is_superuser')
+    list_filter = ('is_staff', 'is_active', 'is_superuser')
+    search_fields = ('email', 'name', 'phone_number')
+    ordering = ('email',)
+
+    fieldsets = (
+        (None, {'fields': ('email', 'password')}),
+        ('Personal Info', {'fields': ('name', 'phone_number', 'profile_picture')}),
+        ('Permissions', {'fields': ('is_staff', 'is_active', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Important Dates', {'fields': ('last_login', 'date_joined')}),
+    )
+
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('email', 'name', 'phone_number', 'password1', 'password2', 'is_staff', 'is_superuser', 'is_active')}
+        ),
+    )
+    
 
 @admin.register(ProductCategory)
 class ProductCategoryAdmin(admin.ModelAdmin):
