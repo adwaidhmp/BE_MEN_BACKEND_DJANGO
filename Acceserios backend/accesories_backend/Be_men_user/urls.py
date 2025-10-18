@@ -2,7 +2,12 @@ from django.urls import path,include
 from .views import SignupView, LoginView, LogoutView, ProfileView, ProfileUpdateView, PasswordChangeView
 from .views import ForgotPasswordView, ResetPasswordView
 from rest_framework.routers import DefaultRouter
-from .views import ProductViewSet, WishlistAPIView, CartAPIView, CheckoutAPIView, UserOrdersAPIView,RazorpayVerifyAPIView
+from product.views import ProductViewSet
+from wishlist.views import WishlistAPIView 
+from cart.views import CartAPIView
+from order.views import CheckoutAPIView, UserOrdersAPIView,RazorpayVerifyAPIView
+
+
 router = DefaultRouter()
 router.register(r'products', ProductViewSet, basename='products')
 from .views import RefreshTokenView

@@ -1,8 +1,8 @@
-
 from django.contrib import admin
-from .models import Product,ProductCategory
+from product.models import Product,ProductCategory
 from django.contrib.auth.admin import UserAdmin
-from Be_men_user.models import Order,User
+from Be_men_user.models import User
+from order.models import Order
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
