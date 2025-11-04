@@ -2,7 +2,8 @@ from cart.views import CartAPIView
 from django.urls import include, path
 from order.views import (CODCheckoutAPIView, NotificationViewSet,
                          RazorpayCheckoutAPIView, RazorpayVerifyAPIView,
-                         UpdateOrderAddressView, UserOrdersAPIView,ReturnRequestView)
+                         ReturnRequestView, UpdateOrderAddressView,
+                         UserOrdersAPIView)
 from product.views import ProductViewSet
 from rest_framework.routers import DefaultRouter
 from wishlist.views import WishlistAPIView
@@ -65,5 +66,9 @@ urlpatterns = [
         UpdateOrderAddressView.as_view(),
         name="update-order-address",
     ),
-    path('orders/<int:order_id>/return/', ReturnRequestView.as_view(), name='return-request'),
+    path(
+        "orders/<int:order_id>/return/",
+        ReturnRequestView.as_view(),
+        name="return-request",
+    ),
 ]

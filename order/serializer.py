@@ -82,7 +82,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 class OrderReturnSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
-        fields = ['return_reason']
+        fields = ["return_reason"]
 
     def validate(self, data):
         order = self.instance
@@ -90,4 +90,4 @@ class OrderReturnSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Only delivered orders can be returned.")
         if not data.get("return_reason"):
             raise serializers.ValidationError("Return reason is required.")
-        return data 
+        return data

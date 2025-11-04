@@ -2,17 +2,29 @@
 Django settings for accesories_backend project.
 """
 
+import os
 from datetime import timedelta
 from pathlib import Path
-from decouple import config, Csv  # Csv allows parsing ALLOWED_HOSTS from .env
+from decouple import Config, RepositoryEnv, Csv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# --------------------------------------------------------------------
+# ENVIRONMENT LOADING
+# --------------------------------------------------------------------
+# Automatically switch between local (.env) and AWS (.env.aws)
+env_file = ".env.aws" if os.environ.get("DJANGO_ENV") == "aws" else ".env"
+config = Config(RepositoryEnv(env_file))
+
+# --------------------------------------------------------------------
+# BASE DIRECTORY
+# --------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY
-SECRET_KEY = config("SECRET_KEY")
+# --------------------------------------------------------------------
+# SECURITY SETTINGS
+# --------------------------------------------------------------------
+SECRET_KEY = config("SECRET_KEY", default="django-insecure-temp-key")
 DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())  # comma-separated in .env
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv()) or []
 
 # Application definition
 INSTALLED_APPS = [
@@ -29,8 +41,12 @@ INSTALLED_APPS = [
     "product",
     "cart",
     "wishlist",
+    'admin_orders',
+    'admin_products',
+    'admin_users',
     "django_filters",
     "order.apps.OrderConfig",
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -78,7 +94,9 @@ DATABASES = {
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -117,6 +135,7 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 SIMPLE_JWT = {
@@ -124,6 +143,21 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "BE_MEN API",
+    "DESCRIPTION": "E-commerce API documentation for the BE_MEN project",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SECURITY": [{"bearerAuth": []}],
+    "SECURITY_SCHEMES": {
+        "bearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        },
+    },
 }
 
 # Email (Gmail)
@@ -136,10 +170,26 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # CORS
-CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
+CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv()) or []
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv()) or []
 
 # Razorpay
 RAZORPAY_KEY_ID = config("RAZORPAY_KEY_ID")
 RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET")
+
+
+# --------------------------------------------------------------------
+# AWS S3 STORAGE (only active if defined in .env.aws)
+# --------------------------------------------------------------------
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default=None)
+AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default=None)
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default=None)
+AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default=None)
+DEFAULT_FILE_STORAGE = config(
+    "DEFAULT_FILE_STORAGE", default="django.core.files.storage.FileSystemStorage"
+)
+
+# Optional: serve static from S3 in AWS
+if os.environ.get("DJANGO_ENV") == "aws":
+    STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"

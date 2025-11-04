@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from .models import Notification, Order
 from .serializer import (CheckoutOrderSerializer, NotificationSerializer,
-                         UserOrderSerializer,OrderReturnSerializer)
+                         OrderReturnSerializer, UserOrderSerializer)
 
 razorpay_client = razorpay.Client(
     auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
@@ -91,6 +91,7 @@ class UserOrdersAPIView(APIView):
             {"message": "Order cancelled successfully"}, status=status.HTTP_200_OK
         )
 
+
 class ReturnRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -98,20 +99,24 @@ class ReturnRequestView(APIView):
         try:
             order = Order.objects.get(id=order_id, user=request.user)
         except Order.DoesNotExist:
-            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         serializer = OrderReturnSerializer(order, data=request.data)
         if serializer.is_valid():
             serializer.save()
             order.order_status = "RETURN_PENDING"
             order.save()
-            return Response({
-                "message": "Return request submitted successfully.",
-                "order_status": order.order_status,
-            }, status=status.HTTP_200_OK)
+            return Response(
+                {
+                    "message": "Return request submitted successfully.",
+                    "order_status": order.order_status,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
 
 
 class CODCheckoutAPIView(APIView):

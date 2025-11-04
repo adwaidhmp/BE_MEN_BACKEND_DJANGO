@@ -19,8 +19,8 @@ class Order(models.Model):
         ("OUT_FOR_DELIVERY", "Out for Delivery"),
         ("DELIVERED", "Delivered"),
         ("CANCELLED", "Cancelled"),
-        ("RETURN_PENDING","Return Pending"),
-        ("RETURNED","Returned")
+        ("RETURN_PENDING", "Return Pending"),
+        ("RETURNED", "Returned"),
     ]
     PAYMENT_METHOD_CHOICES = [("COD", "Cash on Delivery"), ("RAZORPAY", "Razorpay")]
 
@@ -50,8 +50,8 @@ class Order(models.Model):
 
     cancellation_reason = models.TextField(blank=True, null=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
-    return_reason =models.TextField(blank=True ,null=True)
-    returned_at =models.DateTimeField(null=True,blank=True)
+    return_reason = models.TextField(blank=True, null=True)
+    returned_at = models.DateTimeField(null=True, blank=True)
 
     tracking_id = models.CharField(max_length=100, blank=True, null=True)
     delivery_date = models.DateField(blank=True, null=True)

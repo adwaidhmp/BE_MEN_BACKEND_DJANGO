@@ -1,5 +1,5 @@
 from admin_orders.views import (AdminOrderDetailView, AdminOrderListView,
-                                ReturnedCancelledOrdersView,ApproveReturnView)
+                                ApproveReturnView, ReturnedCancelledOrdersView)
 from admin_products.views import (AdminProductCreateView,
                                   AdminProductDeleteView,
                                   AdminProductDetailView, AdminProductListView,
@@ -34,6 +34,14 @@ urlpatterns = [
         AdminProductDeleteView.as_view(),
         name="admin-product-delete",
     ),
-    path("returned-cancelled-orders/", ReturnedCancelledOrdersView.as_view(), name="cancelled-orders"),
-    path('orders/<int:order_id>/return/', ApproveReturnView.as_view(), name='approve-return'),
+    path(
+        "returned-cancelled-orders/",
+        ReturnedCancelledOrdersView.as_view(),
+        name="cancelled-orders",
+    ),
+    path(
+        "orders/<int:order_id>/return/",
+        ApproveReturnView.as_view(),
+        name="approve-return",
+    ),
 ]

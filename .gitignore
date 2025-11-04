@@ -1,6 +1,6 @@
 # Ignore environment variables
 .env
-
+.env .aws
 # Python cache files
 __pycache__/
 *.pyc

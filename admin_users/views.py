@@ -1,16 +1,32 @@
 from Be_men_user.models import User
-from rest_framework import generics, status
+from rest_framework import generics, status, filters
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from django_filters.rest_framework import DjangoFilterBackend
 from .serializer import AdminUserSerializer
+from django.db.models import Q  # ✅ imported Q properly
 
 
 class AdminUserListView(generics.ListAPIView):
     queryset = User.objects.filter(is_staff=False)
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # ✅ Case-insensitive search
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(email__icontains=search) |
+                Q(phone_number__icontains=search)
+            )
+
+        return queryset.order_by('-id')
+
 
 
 class AdminUserDetailView(generics.RetrieveAPIView):

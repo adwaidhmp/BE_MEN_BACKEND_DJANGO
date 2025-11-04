@@ -25,6 +25,8 @@ class AdminOrderSerializer(serializers.ModelSerializer):
             "product",
             "cancellation_reason",
             "cancelled_at",
+            "return_reason",
+            "returned_at",
         ]
 
 
@@ -42,6 +44,6 @@ class CancelledOrderSerializer(serializers.ModelSerializer):
             "product",
             "total_amount",
             "quantity",
-            'return_reason',
-            'returned_at'
+            "return_reason",
+            "returned_at",
         ]

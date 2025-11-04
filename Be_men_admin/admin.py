@@ -84,8 +84,8 @@ class OrderAdmin(admin.ModelAdmin):
         "tracking_id",
         "delivery_date",
         "created_at",
-        'cancellation_reason',
-        'return_reason'
+        "cancellation_reason",
+        "return_reason",
     )
     list_filter = ("payment_status", "order_status", "created_at")
     search_fields = (
@@ -107,7 +107,7 @@ class OrderAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
         "cancellation_reason",
-        'return_reason'
+        "return_reason",
     )
 
     fields = (
@@ -127,5 +127,5 @@ class OrderAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
         "cancellation_reason",
-        'return_reason'
+        "return_reason",
     )
