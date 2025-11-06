@@ -198,8 +198,10 @@ if os.environ.get("DJANGO_ENV") == "aws":
 # --------------------------------------------------------------------
 # COOKIE & SESSION SETTINGS (important for frontend <-> backend auth)
 # --------------------------------------------------------------------
+CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = None
+CSRF_COOKIE_SAMESITE = None
 
-SESSION_COOKIE_SAMESITE = None        # ✅ allow cross-site cookies
-SESSION_COOKIE_SECURE = False         # ✅ False for HTTP (set True after HTTPS)
-CSRF_COOKIE_SAMESITE = None           # ✅ allow CSRF across origins
-CSRF_COOKIE_SECURE = False            # ✅ False for HTTP (True after HTTPS)
+
