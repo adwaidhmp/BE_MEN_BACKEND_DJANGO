@@ -193,3 +193,13 @@ DEFAULT_FILE_STORAGE = config(
 # Optional: serve static from S3 in AWS
 if os.environ.get("DJANGO_ENV") == "aws":
     STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+
+# --------------------------------------------------------------------
+# COOKIE & SESSION SETTINGS (important for frontend <-> backend auth)
+# --------------------------------------------------------------------
+
+SESSION_COOKIE_SAMESITE = None        # ✅ allow cross-site cookies
+SESSION_COOKIE_SECURE = False         # ✅ False for HTTP (set True after HTTPS)
+CSRF_COOKIE_SAMESITE = None           # ✅ allow CSRF across origins
+CSRF_COOKIE_SECURE = False            # ✅ False for HTTP (True after HTTPS)
