@@ -54,14 +54,14 @@ class LoginView(APIView):
                 key="access_token",
                 value=access_token,
                 httponly=True,
-                secure=True,  # must be False for HTTP
+                secure=False,  # must be False for HTTP
                 samesite="None",  # works with same-origin
             )
             response.set_cookie(
                 key="refresh_token",
                 value=refresh_token,
                 httponly=True,
-                secure=True,
+                secure=False,
                 samesite="None",
             )
             return response
