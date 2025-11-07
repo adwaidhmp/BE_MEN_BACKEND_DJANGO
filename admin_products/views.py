@@ -1,9 +1,9 @@
 from django.db.models import Q
-from product.models import Product
-from rest_framework import generics, permissions
+from product.models import Product,ProductCategory
+from rest_framework import generics, permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
 
-from .serializer import AdminProductSerializer
+from .serializer import AdminProductSerializer,ProductCategorySerializer
 
 
 class ProductPagination(PageNumberPagination):
@@ -78,3 +78,10 @@ class AdminProductDeleteView(generics.DestroyAPIView):
     permission_classes = [permissions.IsAdminUser]
     queryset = Product.objects.all()
     lookup_field = "id"
+
+
+class AdminCategoryViewSet(viewsets.ModelViewSet):
+    queryset = ProductCategory.objects.all()
+    serializer_class = ProductCategorySerializer
+    permission_classes = [permissions.IsAdminUser]
+

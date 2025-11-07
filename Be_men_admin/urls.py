@@ -6,9 +6,14 @@ from admin_products.views import (AdminProductCreateView,
                                   AdminProductUpdateView)
 from admin_users.views import (AdminBanUserView, AdminUserDetailView,
                                AdminUserListView)
-from django.urls import path
+from django.urls import path,include
 
 from .views import AdminDashboardAPIView
+from rest_framework.routers import DefaultRouter
+from admin_products.views import AdminCategoryViewSet
+
+router = DefaultRouter()
+router.register(r"category", AdminCategoryViewSet, basename="admin-category")
 
 urlpatterns = [
     path("dashboard/", AdminDashboardAPIView.as_view(), name="admin-dashboard"),
@@ -44,4 +49,5 @@ urlpatterns = [
         ApproveReturnView.as_view(),
         name="approve-return",
     ),
+    path("", include(router.urls)),
 ]
