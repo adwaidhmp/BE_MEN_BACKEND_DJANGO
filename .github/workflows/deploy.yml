@@ -1,44 +1,104 @@
-- name: Remote deploy (sanitized, local expansion)
-  run: |
-    # sanitize runner-side values first
-    EC2_USER_RAW="${{ secrets.EC2_USER }}"
-    EC2_HOST_RAW="${{ secrets.EC2_HOST }}"
-    EC2_DIR_RAW="${{ secrets.EC2_DIR }}"
-    DEPLOY_BRANCH_RAW="${{ env.DEPLOY_BRANCH }}"
+name: Deploy to EC2 (heredoc safe)
 
-    EC2_USER=$(printf "%s" "$EC2_USER_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
-    EC2_HOST=$(printf "%s" "$EC2_HOST_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
-    EC2_DIR=$(printf "%s" "$EC2_DIR_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
-    DEPLOY_BRANCH=$(printf "%s" "$DEPLOY_BRANCH_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
+on:
+  push:
+    branches:
+      - main
 
-    echo "Deploying to ${EC2_USER}@${EC2_HOST} : ${EC2_DIR} (branch ${DEPLOY_BRANCH})"
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SSH_KEY_SECRET: ${{ secrets.SSH_PRIVATE_KEY }}
+      # you must set these repository secrets
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_DIR: ${{ secrets.EC2_DIR }}
+      DEPLOY_BRANCH: main
 
-    # NOTE: heredoc is NOT single-quoted so local $EC2_DIR and $DEPLOY_BRANCH are expanded into the content
-    ssh -o StrictHostKeyChecking=no -i ~/.ssh/ec2_key.pem "${EC2_USER}@${EC2_HOST}" <<SSH_EOF
-      set -euo pipefail
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # use expanded values substituted by the runner into this heredoc
-      cd "${EC2_DIR:-/home/ubuntu}" || { echo "DEPLOY DIR not found: ${EC2_DIR}"; exit 2; }
+      - name: Prepare SSH key file
+        run: |
+          set -e
+          mkdir -p ~/.ssh
+          if [ -z "${SSH_KEY_SECRET}" ]; then
+            echo "ERROR: SSH_PRIVATE_KEY secret is empty"
+            exit 1
+          fi
+          printf "%s\n" "${SSH_KEY_SECRET}" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          echo "Wrote SSH key to ~/.ssh/ec2_key.pem"
+          wc -c ~/.ssh/ec2_key.pem
 
-      git fetch --all --prune
-      git checkout "${DEPLOY_BRANCH:-main}"
-      git reset --hard "origin/${DEPLOY_BRANCH:-main}"
+      - name: Debug - show configured secrets (non-sensitive)
+        run: |
+          echo "EC2_HOST=${EC2_HOST}"
+          echo "EC2_USER=${EC2_USER}"
+          echo "EC2_DIR=${EC2_DIR}"
+          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH}"
 
-      if [ -f "venv/bin/activate" ]; then
-        . venv/bin/activate
-      fi
+      - name: Test SSH connection (sanitize and connect)
+        run: |
+          # sanitize values: remove CR/LF and trim whitespace
+          EC2_USER_RAW="${{ secrets.EC2_USER }}"
+          EC2_HOST_RAW="${{ secrets.EC2_HOST }}"
 
-      if [ -f requirements.txt ]; then
-        pip install -r requirements.txt
-      fi
+          EC2_USER=$(printf "%s" "$EC2_USER_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
+          EC2_HOST=$(printf "%s" "$EC2_HOST_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
 
-      if [ -f manage.py ]; then
-        python manage.py migrate --noinput || true
-        python manage.py collectstatic --noinput || true
-      fi
+          printf "Sanitized EC2_USER: >%s<\n" "$EC2_USER"
+          printf "Sanitized EC2_HOST: >%s<\n" "$EC2_HOST"
+          printf "Sanitized lengths: user=%d host=%d\n" "$(printf "%s" "$EC2_USER" | wc -c)" "$(printf "%s" "$EC2_HOST" | wc -c)"
 
-      sudo systemctl restart gunicorn || echo "gunicorn restart failed or not installed"
-      sudo systemctl restart nginx || echo "nginx restart failed or not installed"
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/ec2_key.pem "${EC2_USER}@${EC2_HOST}" 'printf "Connected Successfully\n"; whoami; hostname'
 
-      echo "DEPLOY: finished successfully on \$(hostname) as \$(whoami)"
-SSH_EOF
+      - name: Remote deploy (sanitized, local expansion)
+        run: |
+          # sanitize runner-side values first
+          EC2_USER_RAW="${{ secrets.EC2_USER }}"
+          EC2_HOST_RAW="${{ secrets.EC2_HOST }}"
+          EC2_DIR_RAW="${{ secrets.EC2_DIR }}"
+          DEPLOY_BRANCH_RAW="${{ env.DEPLOY_BRANCH }}"
+
+          EC2_USER=$(printf "%s" "$EC2_USER_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
+          EC2_HOST=$(printf "%s" "$EC2_HOST_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
+          EC2_DIR=$(printf "%s" "$EC2_DIR_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
+          DEPLOY_BRANCH=$(printf "%s" "$DEPLOY_BRANCH_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
+
+          echo "Deploying to ${EC2_USER}@${EC2_HOST} : ${EC2_DIR} (branch ${DEPLOY_BRANCH})"
+
+          # heredoc below is NOT single-quoted so the runner expands ${EC2_DIR} and ${DEPLOY_BRANCH}
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/ec2_key.pem "${EC2_USER}@${EC2_HOST}" <<SSH_EOF
+            set -euo pipefail
+
+            # use expanded values substituted by the runner into this heredoc
+            cd "${EC2_DIR:-/home/ubuntu}" || { echo "DEPLOY DIR not found: ${EC2_DIR}"; exit 2; }
+
+            git fetch --all --prune
+            git checkout "${DEPLOY_BRANCH:-main}"
+            git reset --hard "origin/${DEPLOY_BRANCH:-main}"
+
+            if [ -f "venv/bin/activate" ]; then
+              . venv/bin/activate
+            fi
+
+            if [ -f requirements.txt ]; then
+              pip install -r requirements.txt
+            fi
+
+            if [ -f manage.py ]; then
+              python manage.py migrate --noinput || true
+              python manage.py collectstatic --noinput || true
+            fi
+
+            sudo systemctl restart gunicorn || echo "gunicorn restart failed or not installed"
+            sudo systemctl restart nginx || echo "nginx restart failed or not installed"
+
+            echo "DEPLOY: finished successfully on \$(hostname) as \$(whoami)"
+          SSH_EOF
+
+      - name: Notify local log (optional)
+        run: echo "CI deploy job completed"
