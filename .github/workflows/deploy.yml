@@ -1,86 +1,44 @@
-name: Deploy to EC2 (heredoc safe)
+- name: Remote deploy (sanitized, local expansion)
+  run: |
+    # sanitize runner-side values first
+    EC2_USER_RAW="${{ secrets.EC2_USER }}"
+    EC2_HOST_RAW="${{ secrets.EC2_HOST }}"
+    EC2_DIR_RAW="${{ secrets.EC2_DIR }}"
+    DEPLOY_BRANCH_RAW="${{ env.DEPLOY_BRANCH }}"
 
-on:
-  push:
-    branches:
-      - main
+    EC2_USER=$(printf "%s" "$EC2_USER_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
+    EC2_HOST=$(printf "%s" "$EC2_HOST_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
+    EC2_DIR=$(printf "%s" "$EC2_DIR_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
+    DEPLOY_BRANCH=$(printf "%s" "$DEPLOY_BRANCH_RAW" | tr -d '\r\n' | awk '{$1=$1;print}')
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    env:
-      # These are expected to be set in GitHub Secrets (Repository → Settings → Secrets & variables → Actions)
-      SSH_KEY_SECRET: ${{ secrets.SSH_PRIVATE_KEY }}
-      EC2_HOST: ${{ secrets.EC2_HOST }}
-      EC2_USER: ${{ secrets.EC2_USER }}
-      EC2_DIR: ${{ secrets.EC2_DIR }}         # e.g. /home/ubuntu/BE_MEN_BACKEND_DJANGO
-      DEPLOY_BRANCH: main
+    echo "Deploying to ${EC2_USER}@${EC2_HOST} : ${EC2_DIR} (branch ${DEPLOY_BRANCH})"
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    # NOTE: heredoc is NOT single-quoted so local $EC2_DIR and $DEPLOY_BRANCH are expanded into the content
+    ssh -o StrictHostKeyChecking=no -i ~/.ssh/ec2_key.pem "${EC2_USER}@${EC2_HOST}" <<SSH_EOF
+      set -euo pipefail
 
-      - name: Prepare SSH key file
-        run: |
-          set -e
-          mkdir -p ~/.ssh
-          if [ -z "${SSH_KEY_SECRET}" ]; then
-            echo "ERROR: SSH_PRIVATE_KEY secret is empty"
-            exit 1
-          fi
-          # write key and secure it
-          printf "%s\n" "${SSH_KEY_SECRET}" > ~/.ssh/ec2_key.pem
-          chmod 600 ~/.ssh/ec2_key.pem
-          echo "Wrote SSH key to ~/.ssh/ec2_key.pem"
-          wc -c ~/.ssh/ec2_key.pem
+      # use expanded values substituted by the runner into this heredoc
+      cd "${EC2_DIR:-/home/ubuntu}" || { echo "DEPLOY DIR not found: ${EC2_DIR}"; exit 2; }
 
-      - name: Debug - show configured secrets (non-sensitive)
-        run: |
-          echo "EC2_HOST=${EC2_HOST}"
-          echo "EC2_USER=${EC2_USER}"
-          echo "EC2_DIR=${EC2_DIR}"
-          echo "DEPLOY_BRANCH=${DEPLOY_BRANCH}"
+      git fetch --all --prune
+      git checkout "${DEPLOY_BRANCH:-main}"
+      git reset --hard "origin/${DEPLOY_BRANCH:-main}"
 
-      - name: Test SSH connection (safe quoted command)
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/ec2_key.pem "${EC2_USER}@${EC2_HOST}" 'printf "Connected Successfully\n"; whoami; hostname'
-        # no env mapping needed here because job env already has them
+      if [ -f "venv/bin/activate" ]; then
+        . venv/bin/activate
+      fi
 
-      - name: Remote deploy (heredoc - safe quoting)
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/ec2_key.pem "${EC2_USER}@${EC2_HOST}" << 'SSH_EOF'
-            set -euo pipefail
+      if [ -f requirements.txt ]; then
+        pip install -r requirements.txt
+      fi
 
-            # change to your project directory (EC2_DIR is substituted by the remote shell via heredoc)
-            cd "${EC2_DIR:-/home/ubuntu}" || { echo "DEPLOY DIR not found: ${EC2_DIR}"; exit 2; }
+      if [ -f manage.py ]; then
+        python manage.py migrate --noinput || true
+        python manage.py collectstatic --noinput || true
+      fi
 
-            # ensure on the correct branch
-            git fetch --all --prune
-            git checkout "${DEPLOY_BRANCH:-main}"
-            git reset --hard "origin/${DEPLOY_BRANCH:-main}"
+      sudo systemctl restart gunicorn || echo "gunicorn restart failed or not installed"
+      sudo systemctl restart nginx || echo "nginx restart failed or not installed"
 
-            # if you use virtualenv named venv at project root
-            if [ -f "venv/bin/activate" ]; then
-              . venv/bin/activate
-            fi
-
-            # install dependencies, migrate, collectstatic, restart services
-            if [ -f requirements.txt ]; then
-              pip install -r requirements.txt
-            fi
-
-            # django management tasks (skip if manage.py absent)
-            if [ -f manage.py ]; then
-              python manage.py migrate --noinput || true
-              python manage.py collectstatic --noinput || true
-            fi
-
-            # restart services (adjust service names if different)
-            sudo systemctl restart gunicorn || echo "gunicorn restart failed or not installed"
-            sudo systemctl restart nginx || echo "nginx restart failed or not installed"
-
-            echo "DEPLOY: finished successfully on $(hostname) as $(whoami)"
-          SSH_EOF
-
-      - name: Notify local log (optional)
-        run: echo "CI deploy job completed"
+      echo "DEPLOY: finished successfully on \$(hostname) as \$(whoami)"
+SSH_EOF
