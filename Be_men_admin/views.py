@@ -2,16 +2,15 @@ from datetime import timedelta
 
 from Be_men_user.models import User
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
+from django.db.models.functions import ExtractWeek, ExtractYear, TruncMonth
 from django.utils import timezone
 from order.models import Order
 from product.models import Product
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-import calendar
+
 from .serializer import AdminDashboardSerializer
-from django.db.models.functions import TruncMonth, TruncWeek, ExtractYear
-from datetime import timedelta
 
 
 class AdminDashboardAPIView(APIView):
@@ -63,72 +62,36 @@ class AdminDashboardAPIView(APIView):
             .order_by("-total")
         )
 
-       # --- Charts: monthly (full year), weekly (this month by week), yearly (by year) ---
-
-# 1) Monthly revenue for entire current year (guarantees Jan..Dec)
-        monthly_qs = (
+        # Monthly revenue this year
+        monthly_data = (
             valid_orders.filter(created_at__year=now.year)
             .annotate(month=TruncMonth("created_at"))
             .values("month")
             .annotate(revenue=Sum(total_expr))
             .order_by("month")
         )
-        # map month index (0..11) -> revenue
-        monthly_map = {m["month"].month - 1: float(m["revenue"] or 0) for m in monthly_qs}
-        monthly_revenue_chart = []
-        for i in range(12):
-            month_name = calendar.month_name[i + 1]  # January .. December
-            monthly_revenue_chart.append({
-                "month_index": i,
-                "month": month_name,
-                "revenue": monthly_map.get(i, 0.0),
-            })
+        monthly_revenue_chart = [
+            {
+                "month": item["month"].strftime("%B"),
+                "revenue": float(item["revenue"] or 0),
+            }
+            for item in monthly_data
+        ]
 
-        # 2) Weekly revenue for the current month (produce week ranges covering the month)
-        # compute end_of_month
-        last_day = calendar.monthrange(now.year, now.month)[1]
-        end_of_month = start_of_month.replace(day=last_day)
-
-        # annotate by week-start and aggregate
-        weekly_qs = (
-            valid_orders.filter(created_at__gte=start_of_month, created_at__lte=end_of_month)
-            .annotate(week_start=TruncWeek("created_at"))
-            .values("week_start")
+        # Weekly revenue this month
+        weekly_data = (
+            valid_orders.filter(created_at__year=now.year, created_at__month=now.month)
+            .annotate(week=ExtractWeek("created_at"))
+            .values("week")
             .annotate(revenue=Sum(total_expr))
-            .order_by("week_start")
+            .order_by("week")
         )
+        weekly_revenue_chart = [
+            {"week": item["week"], "revenue": float(item["revenue"] or 0)}
+            for item in weekly_data
+        ]
 
-        # build dict week_start_date -> revenue
-        weekly_map = {}
-        for item in weekly_qs:
-            ws = item["week_start"]
-            # ensure date object key (some DBs return datetime)
-            ws_date = ws.date() if hasattr(ws, "date") else ws
-            weekly_map[ws_date] = float(item["revenue"] or 0)
-
-        # build list of week intervals that cover the whole month (Monday..Sunday)
-        weeks = []
-        # find the week start containing start_of_month (Monday start)
-        cursor = (start_of_month - timedelta(days=start_of_month.weekday())).date()
-        end_date = end_of_month.date()
-
-        while cursor <= end_date:
-            week_start = cursor
-            week_end = cursor + timedelta(days=6)
-            label_start = max(week_start, start_of_month.date())
-            label_end = min(week_end, end_date)
-            revenue = weekly_map.get(week_start, 0.0)
-            weeks.append({
-                "week_start": week_start.isoformat(),
-                "week_end": week_end.isoformat(),
-                "label": f"{label_start.strftime('%b %d')} - {label_end.strftime('%b %d')}",
-                "revenue": revenue,
-            })
-            cursor = cursor + timedelta(days=7)
-
-        weekly_revenue_chart = weeks
-
-        # 3) Yearly revenue by year (same idea as before)
+        # Yearly revenue (all years)
         yearly_data = (
             valid_orders.annotate(year=ExtractYear("created_at"))
             .values("year")
@@ -136,10 +99,9 @@ class AdminDashboardAPIView(APIView):
             .order_by("year")
         )
         yearly_revenue_chart = [
-            {"year": int(item["year"]), "revenue": float(item["revenue"] or 0)}
+            {"year": item["year"], "revenue": float(item["revenue"] or 0)}
             for item in yearly_data
         ]
-
 
         #  raw data dict
         raw_data = {
