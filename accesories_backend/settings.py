@@ -179,7 +179,7 @@ CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv()) or
 RAZORPAY_KEY_ID = config("RAZORPAY_KEY_ID")
 RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET")
 
-
+                 
 # --------------------------------------------------------------------
 # AWS S3 STORAGE (only active if defined in .env.aws)
 # --------------------------------------------------------------------
