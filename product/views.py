@@ -48,4 +48,4 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     ]
     filterset_class = ProductFilter
     search_fields = ["name", "category__category", "description"]
-    ordering_fields = ["price"]
+    ordering_fields = ["price","created_at"]
