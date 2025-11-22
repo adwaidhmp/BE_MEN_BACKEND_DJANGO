@@ -2,7 +2,7 @@ from django.db.models import Q
 from product.models import Product,ProductCategory
 from rest_framework import generics, permissions, viewsets
 from rest_framework.pagination import PageNumberPagination
-
+from .permissions import IsAdminOrReadOnly
 from .serializer import AdminProductSerializer,ProductCategorySerializer
 
 
@@ -83,5 +83,5 @@ class AdminProductDeleteView(generics.DestroyAPIView):
 class AdminCategoryViewSet(viewsets.ModelViewSet):
     queryset = ProductCategory.objects.all()
     serializer_class = ProductCategorySerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAdminOrReadOnly]
 
