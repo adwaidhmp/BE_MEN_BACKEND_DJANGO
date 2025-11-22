@@ -36,14 +36,24 @@ class UserSignupSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop("password2")
-        return User.objects.create_user(
-            email=validated_data["email"],
-            name=validated_data["name"],
-            phone_number=validated_data.get("phone_number"),
-            profile_picture=validated_data.get("profile_picture", "default.png"),
-            password=validated_data["password"],
-        )
+        # Remove password2
+        validated_data.pop("password2", None)
+
+        profile_picture = validated_data.pop("profile_picture", None)
+
+        # Build kwargs for create_user
+        user_kwargs = {
+            "email": validated_data["email"],
+            "name": validated_data["name"],
+            "phone_number": validated_data.get("phone_number"),
+            "password": validated_data["password"],
+        }
+
+        # Only include profile_picture if provided (so model default is used otherwise)
+        if profile_picture:
+            user_kwargs["profile_picture"] = profile_picture
+
+        return User.objects.create_user(**user_kwargs)
 
 
 class UserLoginSerializer(serializers.Serializer):
