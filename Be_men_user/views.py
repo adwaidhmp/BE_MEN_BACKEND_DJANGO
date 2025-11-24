@@ -48,21 +48,22 @@ class LoginView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-
             # Set cookies (HTTP dev-friendly)
             response.set_cookie(
-                key="access_token",
-                value=access_token,
-                httponly=False,
-                secure=True,  # must be False for HTTP
-                samesite="None",  # works with same-origin
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="None",
+            domain=".duckdns.org",  # IMPORTANT
             )
             response.set_cookie(
                 key="refresh_token",
                 value=refresh_token,
-                httponly=False,
+                httponly=True,
                 secure=True,
                 samesite="None",
+                domain=".duckdns.org",
             )
             return response
         return Response(
