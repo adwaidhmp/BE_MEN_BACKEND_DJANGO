@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, FormParser
 from .serializers import UserProfileSerializer, UserSignupSerializer
+from django.conf import settings
 
 User = get_user_model()
 
@@ -29,9 +30,7 @@ class LoginView(APIView):
         if user:
             if user.is_banned:
                 return Response(
-                    {
-                        "detail": "Your account has been suspended. Please contact support."
-                    },
+                    {"detail": "Your account has been suspended. Please contact support."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
@@ -42,32 +41,41 @@ class LoginView(APIView):
             user_data = UserProfileSerializer(user).data
 
             response = Response(
-                {
-                    "detail": "Login successful",
-                    "user": user_data,
-                },
+                {"detail": "Login successful", "user": user_data},
                 status=status.HTTP_200_OK,
             )
 
-            # Set cookies (HTTP dev-friendly)
+            # cookie parameters
+            cookie_domain = getattr(settings, "COOKIE_DOMAIN", None)  # e.g. ".bemen.duckdns.org"
+            cookie_secure = getattr(settings, "COOKIE_SECURE", True)  # True in prod (HTTPS), False for local HTTP dev
+            cookie_samesite = getattr(settings, "COOKIE_SAMESITE", "None")  # 'None' required for cross-site
+            access_max_age = getattr(settings, "ACCESS_TOKEN_COOKIE_AGE", 3600)  # seconds
+            refresh_max_age = getattr(settings, "REFRESH_TOKEN_COOKIE_AGE", 7 * 24 * 3600)
+
+            # Set cookies
             response.set_cookie(
                 key="access_token",
                 value=access_token,
                 httponly=True,
-                secure=True,  # must be False for HTTP
-                samesite="None",  # works with same-origin
+                secure=cookie_secure,
+                samesite=cookie_samesite,
+                max_age=access_max_age,
+                path="/",
+                domain=cookie_domain,
             )
             response.set_cookie(
                 key="refresh_token",
                 value=refresh_token,
                 httponly=True,
-                secure=True,
-                samesite="None",
+                secure=cookie_secure,
+                samesite=cookie_samesite,
+                max_age=refresh_max_age,
+                path="/",
+                domain=cookie_domain,
             )
             return response
-        return Response(
-            {"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
-        )
+
+        return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class ProfileView(generics.RetrieveAPIView):
