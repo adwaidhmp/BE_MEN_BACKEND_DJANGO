@@ -82,40 +82,9 @@ class ProfileView(generics.RetrieveAPIView):
 class LogoutView(APIView):
     def post(self, request):
         response = Response({"detail": "Logged out successfully"})
-
-        # domain must match the cookie domain EXACTLY
-        cookie_domain = "bemen.duckdns.org"  # or None if host-only
-
-        expires = "Thu, 01 Jan 1970 00:00:00 GMT"
-
-        # DELETE access_token
-        response.set_cookie(
-            key="access_token",
-            value="",
-            expires=expires,
-            max_age=0,
-            path="/",
-            domain=cookie_domain,
-            secure=True,
-            httponly=True,
-            samesite="None",
-        )
-
-        # DELETE refresh_token
-        response.set_cookie(
-            key="refresh_token",
-            value="",
-            expires=expires,
-            max_age=0,
-            path="/",
-            domain=cookie_domain,
-            secure=True,
-            httponly=True,
-            samesite="None",
-        )
-
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
         return response
-
 
 
 class ProfileUpdateView(generics.UpdateAPIView):
