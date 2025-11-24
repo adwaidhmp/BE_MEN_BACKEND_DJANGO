@@ -199,19 +199,11 @@ if os.environ.get("DJANGO_ENV") == "aws":
 # --------------------------------------------------------------------
 # COOKIE & SESSION SETTINGS (important for frontend <-> backend auth)
 # --------------------------------------------------------------------
+CORS_ALLOW_CREDENTIALS = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-
-# SameSite must be the string "None" to emit SameSite=None
-SESSION_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SAMESITE = "None"
-
-# Domain so cookie will be accepted cross-subdomain
-SESSION_COOKIE_DOMAIN = ".duckdns.org"
-CSRF_COOKIE_DOMAIN = ".duckdns.org"
-
-# Optional: Make session cookie HttpOnly (recommended)
-SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = None
+CSRF_COOKIE_SAMESITE = None
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 MB
