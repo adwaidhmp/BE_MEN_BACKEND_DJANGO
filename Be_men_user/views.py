@@ -49,8 +49,6 @@ class LoginView(APIView):
             cookie_domain = getattr(settings, "COOKIE_DOMAIN", None)  # e.g. ".bemen.duckdns.org"
             cookie_secure = getattr(settings, "COOKIE_SECURE", True)  # True in prod (HTTPS), False for local HTTP dev
             cookie_samesite = getattr(settings, "COOKIE_SAMESITE", "None")  # 'None' required for cross-site
-            access_max_age = getattr(settings, "ACCESS_TOKEN_COOKIE_AGE", 3600)  # seconds
-            refresh_max_age = getattr(settings, "REFRESH_TOKEN_COOKIE_AGE", 7 * 24 * 3600)
 
             # Set cookies
             response.set_cookie(
@@ -59,7 +57,6 @@ class LoginView(APIView):
                 httponly=True,
                 secure=cookie_secure,
                 samesite=cookie_samesite,
-                max_age=access_max_age,
                 path="/",
                 domain=cookie_domain,
             )
@@ -69,7 +66,6 @@ class LoginView(APIView):
                 httponly=True,
                 secure=cookie_secure,
                 samesite=cookie_samesite,
-                max_age=refresh_max_age,
                 path="/",
                 domain=cookie_domain,
             )
