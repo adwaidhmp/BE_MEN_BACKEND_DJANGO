@@ -1,6 +1,3 @@
-# Uploaded screenshot path (for reference): /mnt/data/8d165f18-2250-40bd-bda0-5bc285f038ed.png
-# Below is the settings.py content the user pasted (kept as-is for editing/review).
-
 """
 Django settings for accesories_backend project.
 """
@@ -207,19 +204,6 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SAMESITE = None
 CSRF_COOKIE_SAMESITE = None
-
-# set this in your .env.aws for production, and use a different value for local dev if needed
-COOKIE_DOMAIN = config("COOKIE_DOMAIN", default=".bemen.duckdns.org")  # e.g. ".bemen.duckdns.org"
-
-# browsers require SameSite='None' to allow cross-site cookies and that also requires Secure=True
-COOKIE_SECURE = config("COOKIE_SECURE", default=True, cast=bool)
-
-# use the literal string 'None' so Django sets SameSite=None; None (python) omits the header
-SESSION_COOKIE_SAMESITE = config("SESSION_COOKIE_SAMESITE", default="None")
-CSRF_COOKIE_SAMESITE = config("CSRF_COOKIE_SAMESITE", default="None")
-
-SESSION_COOKIE_SECURE = COOKIE_SECURE
-CSRF_COOKIE_SECURE = COOKIE_SECURE
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 MB
