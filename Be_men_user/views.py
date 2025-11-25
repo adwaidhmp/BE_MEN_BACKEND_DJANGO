@@ -54,15 +54,20 @@ class LoginView(APIView):
                 key="access_token",
                 value=access_token,
                 httponly=True,
-                secure=True,  # must be False for HTTP
-                samesite="None",  # works with same-origin
+                secure=True,                 # must be True for HTTPS
+                samesite="Lax",             # required for cross-site cookies
+                path="/",
+                domain=".bemen.duckdns.org"  # include leading dot
             )
+
             response.set_cookie(
                 key="refresh_token",
                 value=refresh_token,
                 httponly=True,
                 secure=True,
-                samesite="None",
+                samesite="Lax",
+                path="/",
+                domain=".bemen.duckdns.org"
             )
             return response
         return Response(
